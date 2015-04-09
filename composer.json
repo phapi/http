@@ -1,0 +1,34 @@
+{
+  "name": "phapi/http",
+  "description": "Phapi HTTP Message is an implementation of PSR-7",
+  "keywords": [
+    "PSR-7", "http message", "phapi"
+  ],
+  "type": "framework",
+  "version": "1.0.0",
+  "minimum-stability": "stable",
+  "license": "MIT",
+  "homepage": "http://phapi.github.io",
+  "authors": [
+    {
+      "name": "Peter Ahinko",
+      "email": "peter@ahinko.se",
+      "role": "Developer"
+    }
+  ],
+  "require": {
+    "php": ">=5.5.0",
+    "psr/http-message": "0.9.*",
+    "phapi/contract": "dev-master"
+  },
+  "require-dev": {
+    "phpunit/phpunit": "4.6.*",
+    "codeclimate/php-test-reporter": "dev-master"
+  },
+  "autoload": {
+    "psr-4": {
+      "Phapi\\Http\\": "src/Phapi/Http/",
+      "Phapi\\Tests\\Http\\": "tests/Phapi/Http/"
+    }
+  }
+}
