@@ -1,6 +1,6 @@
 {
   "name": "phapi/http",
-  "description": "Phapi HTTP Message is an implementation of PSR-7",
+  "description": "Phapi HTTP Message is an implementation of PSR-7 used by the Phapi framework",
   "keywords": [
     "PSR-7", "http message", "phapi"
   ],
