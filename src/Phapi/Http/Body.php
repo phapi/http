@@ -1,9 +1,4 @@
 <?php
-/**
- * This file is part of Phapi.
- *
- * See license.md for information about the license.
- */
 
 namespace Phapi\Http;
 
