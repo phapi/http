@@ -4,7 +4,6 @@
   "keywords": [
     "PSR-7", "http message", "phapi"
   ],
-  "type": "framework",
   "version": "1.0.0",
   "minimum-stability": "stable",
   "license": "MIT",
