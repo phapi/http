@@ -153,7 +153,7 @@ Use the withUnparsedBody(array $data) method to add or modify the body. The seri
 
 
 ## License
-Phapi HTTP Message is licensed under the MIT License - see the LICENSE file for details
+Phapi HTTP Message is licensed under the MIT License - see the [license.md](https://github.com/phapi/http/blob/master/license.md) file for details
 
 ## Contribute
 Contribution, bug fixes etc are [always welcome](https://github.com/phapi/http/issues/new).

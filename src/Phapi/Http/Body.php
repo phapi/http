@@ -17,7 +17,7 @@ use Psr\Http\Message\StreamableInterface;
  * @package  Phapi\Http
  * @author   Peter Ahinko <peter@ahinko.se>
  * @license  MIT (http://opensource.org/licenses/MIT)
- * @link     https://github.com/ahinko/phapi
+ * @link     https://github.com/phapi/http
  */
 class Body implements StreamableInterface {
 
