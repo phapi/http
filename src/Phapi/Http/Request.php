@@ -222,7 +222,7 @@ class Request implements RequestContract {
      */
     public function getAttribute($name, $default = null)
     {
-        return (array_key_exists($name, $this->attributes)) ? $this->attributes[$name] : $default;
+        return (is_array($this->attributes) && array_key_exists($name, $this->attributes)) ? $this->attributes[$name] : $default;
     }
 
     /**
