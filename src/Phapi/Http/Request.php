@@ -137,7 +137,7 @@ class Request implements Contract {
 
         // Check for a query string
         if ($this->uri instanceof UriInterface) {
-            $this->queryParams = parse_str($this->uri->getQuery());
+            parse_str($this->uri->getQuery(), $this->queryParams);
         }
 
         // Handle uploaded files
