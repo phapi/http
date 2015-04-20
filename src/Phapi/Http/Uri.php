@@ -392,17 +392,18 @@ class Uri implements UriInterface
     {
         $parts = parse_url($uri);
 
-        $this->scheme    = isset($parts['scheme'])   ? $this->filterScheme($parts['scheme']) : '';
-        $this->userInfo  = isset($parts['user'])     ? $parts['user']     : '';
-        $this->host      = isset($parts['host'])     ? $parts['host']     : '';
-        $this->port      = isset($parts['port'])     ? $parts['port']     : null;
-        $this->path      = isset($parts['path'])     ? $this->filterPath($parts['path']) : '';
-        $this->query     = isset($parts['query'])    ? $this->filterQuery($parts['query']) : '';
-        $this->fragment  = isset($parts['fragment']) ? $this->filterFragment($parts['fragment']) : '';
-
-        if (isset($parts['pass'])) {
-            $this->userInfo .= ':' . $parts['pass'];
+        foreach ($parts as $key => $value) {
+            $this->$key = $value;
         }
+
+        if (isset($this->user)) {
+            $this->userInfo = $this->user;
+            if (isset($this->pass)) {
+                $this->userInfo .= ':'. $this->pass;
+            }
+        }
+
+        $this->filterScheme($this->scheme);
     }
 
     /**
