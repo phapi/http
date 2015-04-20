@@ -2,68 +2,71 @@
 
 namespace Phapi\Http;
 
-use Psr\Http\Message\StreamableInterface;
+use Psr\Http\Message\StreamInterface;
 
 trait MessageTrait {
 
     /**
-     * Protocol version
+     * Current body stream
      *
-     * @var string
+     * @var resource
      */
-    protected $protocol = '1.1';
-
-    /**
-     * List of valid protocol versions
-     *
-     * @var array
-     */
-    protected $validProtocols = ['1.0', '1.1', '2.0'];
-
-    /**
-     * Headers
-     *
-     * @var array
-     */
-    protected $headers = [];
+    private $stream;
 
     /**
      * Special HTTP headers that do not have the "HTTP_" prefix
      *
      * @var array
      */
-    protected $specialHeaders = [
-        'CONTENT_TYPE',
-        'CONTENT_LENGTH',
-        'CONTENT_MD5',
-        'PHP_AUTH_USER',
-        'PHP_AUTH_PW',
-        'PHP_AUTH_DIGEST',
-        'AUTH_TYPE'
+    private $specialHeaders = [
+        'php_auth_user',
+        'php_auth_pw',
+        'php_auth_digest',
+        'auth_type'
     ];
 
     /**
-     * Body
+     * All headers
      *
-     * @var StreamableInterface
+     * @var array
      */
-    protected $body;
+    private $headers = [];
 
     /**
-     * Disable magic setter to ensure immutability
+     * Storage of original header names
      *
-     * @param $name
-     * @param $value
+     * @var array
      */
-    public function __set($name, $value)
+    private $headerNames = [];
+
+    /**
+     * Current protocol version
+     *
+     * @var string
+     */
+    private $protocol = '1.1';
+
+    /**
+     * {@inheritdoc}
+     */
+    public function getBody()
     {
-        // Do nothing
+        return $this->stream;
     }
 
     /**
-     * Retrieves the HTTP protocol version as a string.
-     *
-     * @return string HTTP protocol version.
+     * {@inheritdoc}
+     */
+    public function withBody(StreamInterface $body)
+    {
+        $new = clone $this;
+        $new->stream = $body;
+
+        return $new;
+    }
+
+    /**
+     * {@inheritdoc}
      */
     public function getProtocolVersion()
     {
@@ -71,29 +74,17 @@ trait MessageTrait {
     }
 
     /**
-     * Create a new instance with the specified HTTP protocol version.
-     *
-     * @param string $version HTTP protocol version
-     * @return self
+     * {@inheritdoc}
      */
     public function withProtocolVersion($version)
     {
-        if (!in_array($version, $this->validProtocols)) {
-            throw new \InvalidArgumentException(
-                'Unsupported HTTP protocol version; supported version are '. implode(', ', $this->validProtocols)
-            );
-        }
-
         $clone = clone $this;
         $clone->protocol = $version;
         return $clone;
     }
 
     /**
-     * Retrieves all message headers.
-     *
-     * @return array Returns an associative array of the message's headers. Each
-     *     key MUST be a header name, and each value MUST be an array of strings.
+     * {@inheritdoc}
      */
     public function getHeaders()
     {
@@ -101,84 +92,79 @@ trait MessageTrait {
     }
 
     /**
-     * Checks if a header exists by the given case-insensitive name.
-     *
-     * @param string $name Case-insensitive header field name.
-     * @return bool Returns true if any header names match the given header
-     *     name using a case-insensitive string comparison. Returns false if
-     *     no matching header name is found in the message.
+     * {@inheritdoc}
      */
     public function hasHeader($name)
     {
-        return array_key_exists(strtolower($name), $this->headers);
+        return array_key_exists(strtolower($name), $this->headerNames);
     }
 
     /**
-     * Retrieve a header by the given case-insensitive name, as a string.
-     *
-     * @param string $name Case-insensitive header field name.
-     * @return string
+     * {@inheritdoc}
      */
     public function getHeader($name)
-    {
-        $header = $this->getHeaderLines($name);
-        return ($header) ? implode(',', $header): '';
-    }
-
-    /**
-     * Retrieves a header by the given case-insensitive name as an array of strings.
-     *
-     * @param string $name Case-insensitive header field name.
-     * @return string[]
-     */
-    public function getHeaderLines($name)
     {
         if (!$this->hasHeader($name)) {
             return [];
         }
 
-        $header = $this->headers[strtolower($name)];
-        return (is_array($header)) ? $header : [$header];
+        $original = $this->headerNames[strtolower($name)];
+
+        $value = $this->headers[$original];
+        $value = is_array($value) ? $value : [$value];
+        return $value;
     }
 
     /**
-     * Create a new instance with the provided header, replacing any existing
-     * values of any headers with the same case-insensitive name.
-     *
-     *
-     * @param string $name Case-insensitive header field name.
-     * @param string|string[] $value Header value(s).
-     * @return self
-     * @throws \InvalidArgumentException for invalid header names or values.
+     * {@inheritdoc}
+     */
+    public function getHeaderLine($name)
+    {
+        if (!$this->hasHeader($name)) {
+            return null;
+        }
+
+        $value = $this->getHeader($name);
+
+        if (empty($value)) {
+            return null;
+        }
+
+        return implode(',', $value);
+    }
+
+    /**
+     * {@inheritdoc}
      */
     public function withHeader($name, $value)
     {
+        if (!$this->isValidHeader($name, $value)) {
+            throw new \InvalidArgumentException(
+                'Invalid header value, must be a string or array of strings'
+            );
+        }
+
         if (is_string($value)) {
             $value = [$value];
         }
 
+        $clone = clone $this;
+        $clone->headerNames[strtolower($name)] = $name;
+        $clone->headers[$name] = $value;
+        return $clone;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function withAddedHeader($name, $value)
+    {
         if (!$this->isValidHeader($name, $value)) {
             throw new \InvalidArgumentException(
                 'Unsupported header value, must be a string or array of strings'
             );
         }
 
-        $clone = clone $this;
-        $clone->headers[strtolower($name)] = $value;
-        return $clone;
-    }
-
-    /**
-     * Creates a new instance, with the specified header appended with the
-     * given value.
-     *
-     * @param string $name Case-insensitive header field name to add.
-     * @param string|string[] $value Header value(s).
-     * @return self
-     * @throws \InvalidArgumentException for invalid header names or values.
-     */
-    public function withAddedHeader($name, $value)
-    {
         if (!$this->hasHeader($name)) {
             return $this->withHeader($name, $value);
         }
@@ -187,57 +173,121 @@ trait MessageTrait {
             $value = [$value];
         }
 
-        if (!$this->isValidHeader($name, $value)) {
-            throw new \InvalidArgumentException(
-                'Unsupported header value, must be a string or array of strings'
-            );
-        }
-
-        $name = strtolower($name);
+        $name = $this->headerNames[strtolower($name)];
         $clone = clone $this;
         $clone->headers[$name] = array_merge($this->headers[$name], $value);
         return $clone;
     }
 
     /**
-     * Creates a new instance, without the specified header.
-     *
-     * @param string $name Case-insensitive header field name to remove.
-     * @return self
+     * {@inheritdoc}
      */
     public function withoutHeader($name)
     {
         if (!$this->hasHeader($name)) {
-            return $this;
+            return clone $this;
         }
 
+        $normalized = strtolower($name);
+        $original   = $this->headerNames[$normalized];
+
         $clone = clone $this;
-        unset($clone->headers[strtolower($name)]);
+        unset($clone->headers[$original], $clone->headerNames[$normalized]);
         return $clone;
     }
 
     /**
-     * Gets the body of the message.
+     * Find all headers from an array (usually the global $_SERVER variable)
      *
-     * @return StreamableInterface Returns the body as a stream.
+     * @param $serverParams
+     * @return array
      */
-    public function getBody()
+    private function findHeaders($serverParams)
     {
-        return $this->body;
+        $headers = [];
+
+        // Loop through server params
+        foreach ($serverParams as $name => $value) {
+            if (strpos($name, 'HTTP_COOKIE') === 0) {
+                // Cookies are handled using the $_COOKIE superglobal
+                continue;
+            }
+
+            // Normalize header name
+            $normalized = strtolower($name);
+
+            // Check if name is in special array or if name starts with http
+            if (
+                in_array($normalized, $this->specialHeaders) ||
+                0 === strpos($normalized, 'http_') ||
+                0 === strpos($normalized, 'content_')
+            ) {
+                // Filter header name
+                $name = $this->filterHeaderName($name);
+
+                // Filter header value
+                $value = $this->filterHeaderValue($value);
+
+                // Checks if it is a valid header
+                if ($this->isValidHeader($name, $value)) {
+                    // Valid header
+                    $headers[$name] = $value;
+                }
+            }
+        }
+
+        return $headers;
     }
 
     /**
-     * Create a new instance, with the specified message body.
+     * Filter header values
      *
-     * @param StreamableInterface $body Body.
-     * @return self
-     * @throws \InvalidArgumentException When the body is not valid.
+     * Makes sure that header values are stored in arrays and checks so the array
+     * only contains strings. Throws exception if array contains something else.
+     *
+     * @param string|array $value
+     * @throws \InvalidArgumentException when array contains something else than strings
+     * @return array
      */
-    public function withBody(StreamableInterface $body)
+    private function filterHeaderValue($value)
     {
-        $clone = clone $this;
-        $clone->body = $body;
-        return $clone;
+        if (is_string($value)) {
+            $value = [ $value ];
+        }
+
+        if (!is_array($value) || !(array_filter($value, 'is_string') === $value)) {
+            throw new \InvalidArgumentException(
+                'Invalid header value; must be a string or array of strings'
+            );
+        }
+
+        return $value;
+    }
+
+    /**
+     * Filter header names.
+     *
+     * Removes any occurranse of "http_" and normalizes the string
+     * to upper casing all words and replacing all underscores
+     * with dashes.
+     *
+     * @param $name
+     * @return mixed|string
+     */
+    private function filterHeaderName($name)
+    {
+        // Transform to lowercase
+        $name = strtolower($name);
+        // Remove http_ in beginning of string
+        $name = str_replace('http_', '', $name);
+        // Replace all underscores with space
+        $name = str_replace('_', ' ', $name);
+        // Uppercase all words
+        $name = ucwords($name);
+        // Replace space with dash
+        $name = str_replace(' ', '-', $name);
+
+        return $name;
     }
 
     /**
@@ -262,5 +312,22 @@ trait MessageTrait {
         }
 
         return false;
+    }
+
+    /**
+     * Create an array with normalized (lowercase) header names as keys
+     * and the original header name as value
+     *
+     * @param array $headers
+     * @return array
+     */
+    private function findHeaderNames(array $headers = [])
+    {
+        $headerNames = [];
+        foreach ($headers as $name => $value) {
+            $headerNames[strtolower($name)] = $name;
+        }
+
+        return $headerNames;
     }
 }

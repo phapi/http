@@ -2,9 +2,10 @@
 namespace Phapi\Tests\Http;
 
 use Phapi\Http\Request;
-use Phapi\Http\Body as Stream;
+use Phapi\Http\UploadedFile;
 use Phapi\Http\Uri;
 use PHPUnit_Framework_TestCase as TestCase;
+use ReflectionProperty;
 
 /**
  * @coversDefaultClass \Phapi\Http\Request
@@ -14,6 +15,125 @@ class RequestTest extends TestCase
     public function setUp()
     {
         $this->request = new Request();
+    }
+
+    public function testServerParamsAreEmptyByDefault()
+    {
+        $this->assertEmpty($this->request->getServerParams());
+    }
+
+    public function testQueryParamsAreEmptyByDefault()
+    {
+        $this->assertEmpty($this->request->getQueryParams());
+    }
+
+    public function testQueryParamsMutatorReturnsCloneWithChanges()
+    {
+        $value = ['foo' => 'bar'];
+        $request = $this->request->withQueryParams($value);
+        $this->assertNotSame($this->request, $request);
+        $this->assertEquals($value, $request->getQueryParams());
+    }
+
+    public function testCookiesAreEmptyByDefault()
+    {
+        $this->assertEmpty($this->request->getCookieParams());
+    }
+
+    public function testCookiesMutatorReturnsCloneWithChanges()
+    {
+        $value = ['foo' => 'bar'];
+        $request = $this->request->withCookieParams($value);
+        $this->assertNotSame($this->request, $request);
+        $this->assertEquals($value, $request->getCookieParams());
+    }
+
+    public function testUploadedFilesAreEmptyByDefault()
+    {
+        $this->assertEmpty($this->request->getUploadedFiles());
+    }
+
+    public function testParsedBodyIsEmptyByDefault()
+    {
+        $this->assertEmpty($this->request->getParsedBody());
+    }
+
+    public function testParsedBodyMutatorReturnsCloneWithChanges()
+    {
+        $value = ['foo' => 'bar'];
+        $request = $this->request->withParsedBody($value);
+        $this->assertNotSame($this->request, $request);
+        $this->assertEquals($value, $request->getParsedBody());
+    }
+
+    public function testAttributesAreEmptyByDefault()
+    {
+        $this->assertEmpty($this->request->getAttributes());
+    }
+
+    /**
+     * @depends testAttributesAreEmptyByDefault
+     */
+    public function testAttributeMutatorReturnsCloneWithChanges()
+    {
+        $request = $this->request->withAttribute('foo', 'bar');
+        $this->assertNotSame($this->request, $request);
+        $this->assertEquals('bar', $request->getAttribute('foo'));
+        return $request;
+    }
+
+    /**
+     * @depends testAttributeMutatorReturnsCloneWithChanges
+     */
+    public function testRemovingAttributeReturnsCloneWithoutAttribute($request)
+    {
+        $new = $request->withoutAttribute('foo');
+        $this->assertNotSame($request, $new);
+        $this->assertNull($new->getAttribute('foo', null));
+    }
+
+    public function testUsesProvidedConstructorArguments()
+    {
+        $server = [
+            'foo' => 'bar',
+            'baz' => 'bat',
+            'REQUEST_METHOD' => 'POST',
+            'REQUEST_URI' => 'http://example.com',
+            'HTTP_HOST' => 'example.com'
+        ];
+
+        $server['server'] = true;
+
+        $files = [
+            'files' => new UploadedFile('php://temp', 0, 0),
+        ];
+
+        $uri = new Uri('http://example.com');
+        $method = 'POST';
+        $headers = [
+            'Host' => ['example.com'],
+        ];
+
+        $request = new Request(
+            $server,
+            $files,
+            'php://memory'
+        );
+
+        $this->assertEquals($server, $request->getServerParams());
+        $this->assertEquals($files, $request->getUploadedFiles());
+
+        $this->assertInstanceOf('Phapi\Http\Uri', $request->getUri());
+        $this->assertEquals($method, $request->getMethod());
+        $this->assertTrue($request->isMethod('POST'));
+        $this->assertFalse($request->isMethod('GET'));
+        $this->assertEquals($headers, $request->getHeaders());
+
+        $body = $request->getBody();
+        $r = new ReflectionProperty($body, 'stream');
+        $r->setAccessible(true);
+        $stream = $r->getValue($body);
+        $this->assertEquals('php://memory', $stream);
     }
 
     public function testMethodIsNullByDefault()
@@ -26,150 +146,6 @@ class RequestTest extends TestCase
         $request = $this->request->withMethod('GET');
         $this->assertNotSame($this->request, $request);
         $this->assertEquals('GET', $request->getMethod());
-        $this->assertTrue($request->isMethod('GET'));
-    }
-
-    public function testUriIsNullByDefault()
-    {
-        $this->assertNull($this->request->getUri());
-    }
-
-    public function testConstructorRaisesExceptionForInvalidStream()
-    {
-        $this->setExpectedException('InvalidArgumentException');
-        new Request([], [], ['TOTALLY INVALID']);
-    }
-
-    public function invalidUrls()
-    {
-        return [
-            'null'   => [null],
-            'true'   => [true],
-            'false'  => [false],
-            'int'    => [1],
-            'float'  => [1.1],
-            'array'  => [['foo']],
-            'object' => [(object) ['foo']],
-        ];
-    }
-
-    public function testWithUriReturnsNewInstanceWithNewUri()
-    {
-        $request = $this->request->withUri(new Uri('https://example.com:10082/foo/bar?baz=bat'));
-        $this->assertNotSame($this->request, $request);
-        $request2 = $request->withUri(new Uri('/baz/bat?foo=bar'));
-        $this->assertNotSame($this->request, $request2);
-        $this->assertNotSame($request, $request2);
-        $this->assertEquals('/baz/bat?foo=bar', (string) $request2->getUri());
-    }
-
-    public function testConstructorCanAcceptAllMessageParts()
-    {
-        $body    = new Stream('php://memory');
-        $headers = [
-            'http_x_foo' => ['bar'],
-        ];
-
-        $server = [
-            'REQUEST_URI' => 'http://example.com/',
-            'REQUEST_METHOD' => 'POST',
-            'HTTP_X_FOO' => ['bar']
-        ];
-        $request = new Request(
-            $server,
-            [],
-            $body
-        );
-
-        $this->assertInstanceOf('Psr\Http\Message\UriInterface', $request->getUri());
-        $this->assertSame('http://example.com/', (string) $request->getUri());
-        $this->assertEquals('POST', $request->getMethod());
-        $this->assertSame($body, $request->getBody());
-        $this->assertEquals($headers, $request->getHeaders());
-    }
-
-    public function invalidRequestUri()
-    {
-        return [
-            'true'     => [ true ],
-            'false'    => [ false ],
-            'int'      => [ 1 ],
-            'float'    => [ 1.1 ],
-            'array'    => [ ['http://example.com'] ],
-            'stdClass' => [ (object) [ 'href'         => 'http://example.com'] ],
-        ];
-    }
-
-    /**
-     * @dataProvider invalidRequestUri
-     */
-    public function testConstructorRaisesExceptionForInvalidUri($uri)
-    {
-        $this->setExpectedException('InvalidArgumentException', 'Unsupported URI');
-        new Request(['REQUEST_URI' => $uri]);
-    }
-
-    public function invalidRequestMethod()
-    {
-        return [
-            'true'       => [ true ],
-            'false'      => [ false ],
-            'int'        => [ 1 ],
-            'float'      => [ 1.1 ],
-            'bad-string' => [ 'BOGUS-METHOD' ],
-            'array'      => [ ['POST'] ],
-            'stdClass'   => [ (object) [ 'method' => 'POST'] ],
-        ];
-    }
-
-    /**
-     * @dataProvider invalidRequestMethod
-     */
-    public function testConstructorRaisesExceptionForInvalidMethod($method)
-    {
-        $this->setExpectedException('InvalidArgumentException', 'Unsupported HTTP method');
-        new Request(['REQUEST_METHOD' => $method]);
-    }
-
-    public function invalidRequestBody()
-    {
-        return [
-            'true'       => [ true ],
-            'false'      => [ false ],
-            'int'        => [ 1 ],
-            'float'      => [ 1.1 ],
-            'array'      => [ ['BODY'] ],
-            'stdClass'   => [ (object) [ 'body' => 'BODY'] ],
-        ];
-    }
-
-    /**
-     * @dataProvider invalidRequestBody
-     */
-    public function testConstructorRaisesExceptionForInvalidBody($body)
-    {
-        $this->setExpectedException('InvalidArgumentException', 'stream');
-        new Request([], [], $body);
-    }
-
-    public function testConstructorIgnoresInvalidHeaders()
-    {
-        $headers = [
-            [ 'INVALID' ],
-            'http_x_invalid_null' => null,
-            'http_x_invalid_true' => true,
-            'http_x_invalid_false' => false,
-            'http_x_invalid_int' => 1,
-            'http_x_invalid_object' => (object) ['INVALID'],
-            'http_x_valid_string' => 'VALID',
-            'http_x_valid_array' => [ 'VALID' ],
-        ];
-        $expected = [
-            'http_x_valid_string' => [ 'VALID' ],
-            'http_x_valid_array' => [ 'VALID' ],
-        ];
-        $request = new Request($headers);
-        $this->assertEquals($expected, $request->getHeaders());
     }
 
     public function testRequestTargetIsSlashWhenNoUriPresent()
@@ -255,7 +231,7 @@ class RequestTest extends TestCase
     {
         $request = (new Request())->withUri(new Uri('https://example.com/foo/bar'));
         $original = $request->getRequestTarget();
-        $newRequest = $request->withUri(new Uri('http://localhost/bar/baz'));
+        $newRequest = $request->withUri(new Uri('http://github.com/bar/baz'));
         $this->assertNotEquals($original, $newRequest->getRequestTarget());
     }
 
@@ -263,130 +239,101 @@ class RequestTest extends TestCase
     {
         $request = (new Request())->withUri(new Uri('https://example.com/foo/bar'));
         $original = $request->getRequestTarget();
-        $newRequest = $request->withUri(new Uri('http://mwop.net/bar/baz'));
+        $newRequest = $request->withUri(new Uri('https://github.com/bar/baz'));
+        $this->assertNotEquals($original, $newRequest->getRequestTarget());
     }
 
-    public function testServerParamsAreEmptyByDefault()
+    public function testConstructWithInvalidBody()
     {
-        $this->assertEmpty($this->request->getServerParams());
+        $this->setExpectedException('InvalidArgumentException', 'Body must be a string');
+        $request = new Request([], [], new \stdClass());
     }
 
-    public function testQueryParamsAreEmptyByDefault()
+    public function testMethodValidationFailType()
     {
-        $this->assertEmpty($this->request->getQueryParams());
+        $this->setExpectedException('InvalidArgumentException', 'Unsupported HTTP method');
+        $this->request->withMethod(new \stdClass());
     }
 
-    public function testQueryParamsMutatorReturnsCloneWithChanges()
+    public function testMethodValidationFailMethod()
     {
-        $value = ['foo' => 'bar'];
-        $request = $this->request->withQueryParams($value);
-        $this->assertNotSame($this->request, $request);
-        $this->assertSame($value, $request->getQueryParams());
+        $this->setExpectedException('InvalidArgumentException', 'Unsupported HTTP method');
+        $this->request->withMethod('CATCH');
     }
 
-    public function testCookiesAreEmptyByDefault()
+    public function testMethodValidationWithNull()
     {
-        $this->assertEmpty($this->request->getCookieParams());
+        $new = $this->request->withMethod(null);
+        $this->assertNull($new->getMethod());
     }
 
-    public function testCookiesMutatorReturnsCloneWithChanges()
+    public function testWithoutAttributeWithNotExistingAttribute()
     {
-        $value = ['foo' => 'bar'];
-        $request = $this->request->withCookieParams($value);
-        $this->assertSame($this->request, $request);
-        $this->assertNotEquals($value, $request->getCookieParams());
+        $new = $this->request->withoutAttribute('nonExisting');
+        $this->assertNotSame($new, $this->request);
+        $this->assertEquals('wrong', $new->getAttribute('nonExisting', 'wrong'));
     }
 
-    public function testFileParamsAreEmptyByDefault()
+    public function testWithUriPreserveHost()
     {
-        $this->assertEmpty($this->request->getFileParams());
+        $new = $this->request->withUri(new Uri('https://api.example.com/foo/bar'), true);
+        $this->assertFalse($new->hasHeader('Host'));
+        $this->assertEquals([], $new->getHeader('Host'));
     }
 
-    public function testParsedBodyIsEmptyByDefault()
+    public function testWithUriWithPort()
     {
-        $this->assertEmpty($this->request->getParsedBody());
+        $new = $this->request->withUri(new Uri('https://api.example.com:8080/foo/bar'));
+        $this->assertEquals(8080, $new->getUri()->getPort());
     }
 
-    public function testParsedBodyMutatorReturnsCloneWithChanges()
+    public function testWithUriWithoutHost()
     {
-        $value = ['foo' => 'bar'];
-        $request = $this->request->withParsedBody($value);
-        $this->assertNotSame($this->request, $request);
-        $this->assertEquals($value, $request->getParsedBody());
+        $new = $this->request->withUri(new Uri('/foo/bar'));
+        $this->assertEquals('/foo/bar', (string) $new->getUri());
     }
 
-    public function testAttributesAreEmptyByDefault()
+    public function testWithUploadedFiles()
     {
-        $this->assertEmpty($this->request->getAttributes());
+        $files = [
+            'files' => new UploadedFile('php://temp', 0, 0),
+            'anotherFile' => new UploadedFile('php://temp', 0, 0),
+        ];
+        $new = $this->request->withUploadedFiles($files);
+        $this->assertNotSame($this->request, $new);
+        $this->assertEquals($files, $new->getUploadedFiles());
     }
 
-    /**
-     * @depends testAttributesAreEmptyByDefault
-     */
-    public function testAttributeMutatorReturnsCloneWithChanges()
+    public function testWithUploadedFilesArrayInArray()
     {
-        $request = $this->request->withAttribute('foo', 'bar');
-        $this->assertNotSame($this->request, $request);
-        $this->assertEquals('bar', $request->getAttribute('foo'));
-        return $request;
+        $files = [[
+            'files' => new UploadedFile('php://temp', 0, 0),
+            'anotherFile' => new UploadedFile('php://temp', 0, 0),
+        ]];
+        $new = $this->request->withUploadedFiles($files);
+        $this->assertNotSame($this->request, $new);
+        $this->assertEquals($files, $new->getUploadedFiles());
     }
 
-    /**
-     * @depends testAttributeMutatorReturnsCloneWithChanges
-     */
-    public function testRemovingAttributeReturnsCloneWithoutAttribute($request)
+    public function testWithUploadedFilesNotInstanceOfUploadedFileInterface()
     {
-        $new = $request->withoutAttribute('foo');
-        $this->assertNotSame($request, $new);
-        $this->assertNull($new->getAttribute('foo', null));
-
-        $two = $request->withoutAttribute('bar');
-        $this->assertSame($request, $two);
+        $files = [[
+            'files' => new UploadedFile('php://temp', 0, 0),
+            'anotherFile' => new UploadedFile('php://temp', 0, 0),
+            'std' => new \stdClass(),
+        ]];
+        $this->setExpectedException('InvalidArgumentException', 'Invalid leaf in upload');
+        $new = $this->request->withUploadedFiles($files);
     }
 
-    public function testUsesProvidedConstructorArguments()
+    public function testSetValidMethods()
     {
         $server = [
-            'foo' => 'bar',
-            'baz' => 'bat',
+            'REQUEST_METHOD' => 'PATCH'
         ];
+        $validMethods = ['GET', 'POST'];
 
-        $server['server'] = true;
-
-        $server['REQUEST_URI'] = 'http://example.com';
-        $server['REQUEST_METHOD'] = 'POST';
-        $server['HTTP_HOST'] = ['example.com'];
-
-        $request = new Request(
-            $server,
-            [],
-            'php://memory'
-        );
-
-        $this->assertEquals($server, $request->getServerParams());
-        $this->assertEquals(null, $request->getFileParams());
-
-        $this->assertInstanceOf('Psr\Http\Message\UriInterface', $request->getUri());
-        $this->assertSame('http://example.com/', (string) $request->getUri());
-        $this->assertEquals($server['REQUEST_METHOD'], $request->getMethod());
-        $this->assertEquals(['http_host' => ['example.com']], $request->getHeaders());
-
-        $body = $request->getBody();
-        $r = new \ReflectionProperty($body, 'stream');
-        $r->setAccessible(true);
-        $stream = $r->getValue($body);
-        $this->assertEquals('php://memory', $stream);
-    }
-
-    public function testSetCustomValidMethods()
-    {
         $this->setExpectedException('InvalidArgumentException', 'Unsupported HTTP method');
-        $request = new Request(['REQUEST_METHOD' => 'PUT'], [], 'php://memory', ['POST', 'GET']);
-    }
-    public function testWithInvalidMethod()
-    {
-        $request = new Request(['REQUEST_METHOD' => 'POST'], [], 'php://memory', ['POST', 'GET']);
-        $this->setExpectedException('InvalidArgumentException', 'Unsupported HTTP method');
-        $new = $request->withMethod('PUT');
+        $request = new Request($server, [], 'php://memory', $validMethods);
     }
 }

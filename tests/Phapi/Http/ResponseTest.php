@@ -1,8 +1,8 @@
 <?php
 namespace Phapi\Tests\Http;
 
-use Phapi\Http\Body;
 use Phapi\Http\Response;
+use Phapi\Http\Stream;
 use PHPUnit_Framework_TestCase as TestCase;
 
 /**
@@ -15,20 +15,10 @@ class ResponseTest extends TestCase
         $this->response = new Response();
     }
 
-    public function testGetReasonPhrase()
-    {
-        $this->assertEquals('OK', $this->response->getReasonPhrase());
-    }
-
     public function testStatusCodeIs200ByDefault()
     {
         $this->assertEquals(200, $this->response->getStatusCode());
-    }
-
-    public function testUnparsedBody()
-    {
-        $response = $this->response->withUnparsedBody([ 'key' => 'value' ]);
-        $this->assertEquals([ 'key' => 'value' ], $response->getUnparsedBody());
+        $this->assertEquals('OK', $this->response->getReasonPhrase());
     }
 
     public function testStatusCodeMutatorReturnsCloneWithChanges()
@@ -80,7 +70,7 @@ class ResponseTest extends TestCase
 
     public function testConstructorCanAcceptAllMessageParts()
     {
-        $body = new Body('php://memory');
+        $body = new Stream('php://memory');
         $status = 302;
         $headers = [
             'location' => [ 'http://example.com/' ],
@@ -111,7 +101,7 @@ class ResponseTest extends TestCase
      */
     public function testConstructorRaisesExceptionForInvalidStatus($code)
     {
-        $this->setExpectedException('InvalidArgumentException', 'Unsupported status code');
+        $this->setExpectedException('InvalidArgumentException', 'Invalid status code');
         new Response('php://memory', $code);
     }
 
@@ -154,5 +144,11 @@ class ResponseTest extends TestCase
         ];
         $response = new Response('php://memory', null, $headers);
         $this->assertEquals($expected, $response->getHeaders());
+    }
+
+    public function testUnparsedBody()
+    {
+        $response = $this->response->withUnparsedBody([ 'key' => 'value' ]);
+        $this->assertEquals([ 'key' => 'value' ], $response->getUnparsedBody());
     }
 }

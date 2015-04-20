@@ -54,12 +54,20 @@ $bool = $request->hasHeader('Accept');
 ```
 
 #### Fetch single header
-Retrieve a header by the given case-insensitive name, as a string by using the <code>getHeader($name)</code> method.
+Retrieve a header by the given case-insensitive name, as an array by using the <code>getHeader($name)</code> method.
 
 ```php
 <?php
-$header = $request->getHeader('Accept');
+$header = $request->getHeader('Accept'); // Returns array
 ```
+
+Use <code>getHeaderLine()</code> method to get a string.
+
+```php
+<?php
+$header = $request->getHeaderLine('Accept'); // Returns string
+```
+
 
 ### Request body
 Depending on the request method there are mainly two ways to get the content of the request body.

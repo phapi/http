@@ -1,22 +1,21 @@
 <?php
 namespace Phapi\Tests\Http;
 
-use Phapi\Http\Body as Stream;
+use Phapi\Http\Stream;
 use PHPUnit_Framework_TestCase as TestCase;
 use ReflectionProperty;
 
 /**
- * @coversDefaultClass \Phapi\Http\Body
+ * @coversDefaultClass \Phapi\Http\Stream
  */
-class BodyTest extends TestCase
+class StreamTest extends TestCase
 {
     public $tmpnam;
-    public $stream;
 
     public function setUp()
     {
         $this->tmpnam = null;
-        $this->stream = new Stream('php://memory', 'w+');
+        $this->stream = new Stream('php://memory', 'wb+');
     }
 
     public function tearDown()
@@ -28,14 +27,14 @@ class BodyTest extends TestCase
 
     public function testCanInstantiateWithStreamIdentifier()
     {
-        $this->assertInstanceOf('Phapi\Http\Body', $this->stream);
+        $this->assertInstanceOf('Phapi\Http\Stream', $this->stream);
     }
 
     public function testCanInstantiteWithStreamResource()
     {
         $resource = fopen('php://memory', 'wb+');
         $stream   = new Stream($resource);
-        $this->assertInstanceOf('Phapi\Http\Body', $stream);
+        $this->assertInstanceOf('Phapi\Http\Stream', $stream);
     }
 
     public function testIsReadableReturnsFalseIfStreamIsNotReadable()
@@ -56,15 +55,6 @@ class BodyTest extends TestCase
         $message = 'foo bar';
         $this->stream->write($message);
         $this->assertEquals($message, (string) $this->stream);
-    }
-
-    public function testWriteRetrievesFullContentsOfStream()
-    {
-        $stream = new Stream('php://memory', 'w+');
-        $message = 'foo bar';
-        $stream->write($message);
-        $stream->rewind();
-        $this->assertEquals($message, $stream->read(7));
     }
 
     public function testDetachReturnsResource()
@@ -120,9 +110,13 @@ class BodyTest extends TestCase
         $this->assertSame($resource, $detached);
     }
 
-    public function testSizeAlwaysReportsNull()
+    /**
+     * @group 42
+     */
+    public function testSizeReportsNullWhenNoResourcePresent()
     {
-        $this->assertSame(0, $this->stream->getSize());
+        $this->stream->detach();
+        $this->assertNull($this->stream->getSize());
     }
 
     public function testTellReportsCurrentPositionInResource()
@@ -137,7 +131,7 @@ class BodyTest extends TestCase
         $this->assertEquals(2, $stream->tell());
     }
 
-    public function testTellReturnsFalseIfResourceIsDetached()
+    public function testTellRaisesExceptionIfResourceIsDetached()
     {
         $this->tmpnam = tempnam(sys_get_temp_dir(), 'phapi');
         file_put_contents($this->tmpnam, 'FOO BAR');
@@ -146,7 +140,8 @@ class BodyTest extends TestCase
 
         fseek($resource, 2);
         $stream->detach();
-        $this->assertFalse($stream->tell());
+        $this->setExpectedException('RuntimeException', 'No resource');
+        $stream->tell();
     }
 
     public function testEofReportsFalseWhenNotAtEndOfStream()
@@ -194,6 +189,11 @@ class BodyTest extends TestCase
         $this->assertTrue($stream->isSeekable());
     }
 
+    public function testIsSeekableRaisesExceptionForNonSeekableStreams()
+    {
+        $this->markTestIncomplete('Do not know how to create a non-seekable stream');
+    }
+
     public function testIsSeekableReturnsFalseForDetachedStreams()
     {
         $this->tmpnam = tempnam(sys_get_temp_dir(), 'phapi');
@@ -202,7 +202,6 @@ class BodyTest extends TestCase
         $stream = new Stream($resource);
         $stream->detach();
         $this->assertFalse($stream->isSeekable());
-        $this->assertFalse($stream->rewind());
     }
 
     public function testSeekAdvancesToGivenOffsetOfStream()
@@ -226,15 +225,15 @@ class BodyTest extends TestCase
         $this->assertEquals(0, $stream->tell());
     }
 
-    public function testSeekReturnsFalseWhenStreamIsDetached()
+    public function testSeekRaisesExceptionWhenStreamIsDetached()
     {
         $this->tmpnam = tempnam(sys_get_temp_dir(), 'phapi');
         file_put_contents($this->tmpnam, 'FOO BAR');
         $resource = fopen($this->tmpnam, 'wb+');
         $stream = new Stream($resource);
         $stream->detach();
-        $this->assertFalse($stream->seek(2));
-        $this->assertEquals(0, ftell($resource));
+        $this->setExpectedException('RuntimeException', 'No resource');
+        $stream->seek(2);
     }
 
     public function testIsWritableReturnsFalseWhenStreamIsDetached()
@@ -247,14 +246,15 @@ class BodyTest extends TestCase
         $this->assertFalse($stream->isWritable());
     }
 
-    public function testWriteReturnsFalseWhenStreamIsDetached()
+    public function testWriteRaisesExceptionWhenStreamIsDetached()
     {
         $this->tmpnam = tempnam(sys_get_temp_dir(), 'phapi');
         file_put_contents($this->tmpnam, 'FOO BAR');
         $resource = fopen($this->tmpnam, 'wb+');
         $stream = new Stream($resource);
         $stream->detach();
-        $this->assertFalse($stream->write('bar'));
+        $this->setExpectedException('RuntimeException', 'No resource');
+        $stream->write('bar');
     }
 
     public function testIsReadableReturnsFalseWhenStreamIsDetached()
@@ -267,14 +267,15 @@ class BodyTest extends TestCase
         $this->assertFalse($stream->isReadable());
     }
 
-    public function testReadReturnsEmptyStringWhenStreamIsDetached()
+    public function testReadRaisesExceptionWhenStreamIsDetached()
     {
         $this->tmpnam = tempnam(sys_get_temp_dir(), 'phapi');
         file_put_contents($this->tmpnam, 'FOO BAR');
         $resource = fopen($this->tmpnam, 'r');
         $stream = new Stream($resource);
         $stream->detach();
-        $this->assertEquals('', $stream->read(4096));
+        $this->setExpectedException('RuntimeException', 'No resource');
+        $stream->read(4096);
     }
 
     public function testReadReturnsEmptyStringWhenAtEndOfFile()
@@ -300,7 +301,7 @@ class BodyTest extends TestCase
 
     public function invalidResources()
     {
-        $this->tmpnam = tempnam(sys_get_temp_dir(), 'phapi');
+        $this->tmpnam = tempnam(sys_get_temp_dir(), 'PHAPI');
         return [
             'null' => [ null ],
             'false' => [ false ],
@@ -318,13 +319,13 @@ class BodyTest extends TestCase
      */
     public function testAttachWithNonStringNonResourceRaisesException($resource)
     {
-        $this->setExpectedException('InvalidArgumentException', 'Unsupported stream');
+        $this->setExpectedException('InvalidArgumentException', 'Invalid stream');
         $this->stream->attach($resource);
     }
 
     public function testAttachWithResourceAttachesResource()
     {
-        $this->tmpnam = tempnam(sys_get_temp_dir(), 'phapi');
+        $this->tmpnam = tempnam(sys_get_temp_dir(), 'PHAPI');
         $resource = fopen($this->tmpnam, 'r+');
         $this->stream->attach($resource);
 
@@ -336,7 +337,7 @@ class BodyTest extends TestCase
 
     public function testAttachWithStringRepresentingResourceCreatesAndAttachesResource()
     {
-        $this->tmpnam = tempnam(sys_get_temp_dir(), 'phapi');
+        $this->tmpnam = tempnam(sys_get_temp_dir(), 'PHAPI');
         $this->stream->attach($this->tmpnam);
 
         $resource = fopen($this->tmpnam, 'r+');
@@ -349,7 +350,7 @@ class BodyTest extends TestCase
 
     public function testGetContentsShouldGetFullStreamContents()
     {
-        $this->tmpnam = tempnam(sys_get_temp_dir(), 'phapi');
+        $this->tmpnam = tempnam(sys_get_temp_dir(), 'PHAPI');
         $resource = fopen($this->tmpnam, 'r+');
         $this->stream->attach($resource);
 
@@ -363,7 +364,7 @@ class BodyTest extends TestCase
 
     public function testGetContentsShouldReturnStreamContentsFromCurrentPointer()
     {
-        $this->tmpnam = tempnam(sys_get_temp_dir(), 'phapi');
+        $this->tmpnam = tempnam(sys_get_temp_dir(), 'PHAPI');
         $resource = fopen($this->tmpnam, 'r+');
         $this->stream->attach($resource);
 
@@ -377,7 +378,7 @@ class BodyTest extends TestCase
 
     public function testGetMetadataReturnsAllMetadataWhenNoKeyPresent()
     {
-        $this->tmpnam = tempnam(sys_get_temp_dir(), 'phapi');
+        $this->tmpnam = tempnam(sys_get_temp_dir(), 'PHAPI');
         $resource = fopen($this->tmpnam, 'r+');
         $this->stream->attach($resource);
 
@@ -389,7 +390,7 @@ class BodyTest extends TestCase
 
     public function testGetMetadataReturnsDataForSpecifiedKey()
     {
-        $this->tmpnam = tempnam(sys_get_temp_dir(), 'phapi');
+        $this->tmpnam = tempnam(sys_get_temp_dir(), 'PHAPI');
         $resource = fopen($this->tmpnam, 'r+');
         $this->stream->attach($resource);
 
@@ -403,10 +404,27 @@ class BodyTest extends TestCase
 
     public function testGetMetadataReturnsNullIfNoDataExistsForKey()
     {
-        $this->tmpnam = tempnam(sys_get_temp_dir(), 'phapi');
+        $this->tmpnam = tempnam(sys_get_temp_dir(), 'PHAPI');
         $resource = fopen($this->tmpnam, 'r+');
         $this->stream->attach($resource);
 
         $this->assertNull($this->stream->getMetadata('TOTALLY_MADE_UP'));
+    }
+
+    /**
+     * @group 42
+     */
+    public function testGetSizeReturnsStreamSize()
+    {
+        $resource = fopen(__FILE__, 'r');
+        $expected = fstat($resource);
+        $stream = new Stream($resource);
+        $this->assertEquals($expected['size'], $stream->getSize());
+    }
+
+    public function testConstructorWithFaultyStream()
+    {
+        $this->setExpectedException('InvalidArgumentException', 'Invalid file');
+        $stream = new Stream('/root/test.txt');
     }
 }

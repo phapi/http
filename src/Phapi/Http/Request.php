@@ -2,78 +2,31 @@
 
 namespace Phapi\Http;
 
-use Phapi\Contract\Http\Request as RequestContract;
-use Psr\Http\Message\StreamableInterface;
+use Phapi\Contract\Http\Request as Contract;
+use Psr\Http\Message\StreamInterface;
+use Psr\Http\Message\UploadedFileInterface;
 use Psr\Http\Message\UriInterface;
 
 /**
- * Representation of an incoming, server-side HTTP request.
+ * Implementation of PSR server Request
  *
  * @category Phapi
  * @package  Phapi\Http
  * @author   Peter Ahinko <peter@ahinko.se>
  * @license  MIT (http://opensource.org/licenses/MIT)
  * @link     https://github.com/phapi/http
+ * @link     https://github.com/phly/http This class is based upon
+ *           Matthew Weier O'Phinney's Stream implementation in phly/http.
  */
-class Request implements RequestContract {
+class Request implements Contract {
 
+    /**
+     * Use traits
+     */
     use MessageTrait;
 
-    /**
-     * Server params
-     *
-     * @var array
-     */
-    protected $serverParams;
-
-    /**
-     * Request method
-     *
-     * @var null|string
-     */
-    protected $method;
-
-    /**
-     * Attributes
-     *
-     * @var array
-     */
-    protected $attributes;
-
-    /**
-     * Parsed body
-     *
-     * @var mixed
-     */
-    protected $parsedBody;
-
-    /**
-     * Query parameters
-     *
-     * @var array
-     */
-    protected $queryParams;
-
-    /**
-     * Request target
-     *
-     * @var string
-     */
-    protected $requestTarget;
-
-    /**
-     * Request URI
-     *
-     * @var null|Uri
-     */
-    protected $uri;
-
-    /**
-     * Valid request methods
-     *
-     * @var array
-     */
-    protected $validMethods = [
+    private $validMethods = [
+        'CONNECT', 'TRACE',
         'GET', 'HEAD', 'OPTIONS',
         'POST', 'PATCH', 'PUT',
         'DELETE', 'COPY',
@@ -81,188 +34,119 @@ class Request implements RequestContract {
     ];
 
     /**
-     * Create a request
+     * Current server params (usually same as $_SERVER]
+     *
+     * @var array
+     */
+    private $serverParams = [];
+
+    /**
+     * Current attributes
+     *
+     * @var array
+     */
+    private $attributes = [];
+
+    /**
+     * Current parsed body
+     *
+     * @var mixed
+     */
+    private $parsedBody;
+
+    /**
+     * Current query params
+     *
+     * @var array
+     */
+    private $queryParams = [];
+
+    /**
+     * Current cookie params
+     *
+     * @var array
+     */
+    private $cookieParams = [];
+
+    /**
+     * Current request target
+     *
+     * @var string
+     */
+    private $requestTarget;
+
+    /**
+     * Current request method
+     *
+     * @var string
+     */
+    private $method;
+
+    /**
+     * Current URI
+     *
+     * @var UriInterface
+     */
+    private $uri;
+
+    /**
+     * Uploaded files
+     *
+     * @var array
+     */
+    private $uploadedFiles;
+
+    /**
+     * Create an request
      *
      * @param array $serverParams
-     * @param array $queryParams
+     * @param array $uploadedFiles
      * @param string $body
      * @param array $validMethods
      */
-    public function __construct(
-        array $serverParams = [],
-        array $queryParams = [],
-        $body = 'php://input',
-        $validMethods = []
-    ) {
-        $this->serverParams = $serverParams;
-        $this->getQueryParams = $queryParams;
-
-        $this->protocol =
-            (isset($serverParams['SERVER_PROTOCOL'])) ? substr($serverParams['SERVER_PROTOCOL'], -3) : '1.1';
-
-        $this->body = ($body instanceof StreamableInterface) ? $body : new Body($body);
-        $this->uri = (isset($this->serverParams['REQUEST_URI'])) ? new Uri($this->serverParams['REQUEST_URI']) : null;
-
-        $this->headers = $this->findHeaders($this->serverParams);
-
+    public function __construct($serverParams = [], $uploadedFiles = [], $body = 'php://memory', $validMethods = [])
+    {
         if (!empty($validMethods)) {
             $this->validMethods = $validMethods;
         }
 
+        // Set server params
+        $this->serverParams =
+            ($serverParams !== null) ? array_merge($serverParams, $this->serverParams) : $this->serverParams;
+
+        // Find and process headers
+        $this->headers = $this->findHeaders($this->serverParams);
+        $this->headerNames = $this->findHeaderNames($this->headers);
+
+        // Make sure the body is valid
+        if (!is_string($body) && !is_resource($body) && !$body instanceof StreamInterface) {
+            throw new \InvalidArgumentException(
+                'Body must be a string stream resource identifier, '
+                . 'an actual stream resource, '
+                . 'or a Psr\Http\Message\StreamInterface implementation'
+            );
+        }
+        // Set body
+        $this->stream = ($body instanceof StreamInterface) ? $body : new Stream($body, 'r');
+
+        // Find the request method from the server params
         $this->method = $this->findMethod($this->serverParams);
-    }
 
-    /**
-     * Retrieve server parameters.
-     *
-     * @return array
-     */
-    public function getServerParams()
-    {
-        return $this->serverParams;
-    }
+        // Create an Uri object by looking for the request uri in the server params
+        $this->uri = (isset($this->serverParams['REQUEST_URI'])) ? new Uri($this->serverParams['REQUEST_URI']) : null;
 
-    /**
-     * Cookies should not be used with APIs
-     *
-     * @return null
-     */
-    public function getCookieParams()
-    {
-        return null;
-    }
-
-    /**
-     * Cookies should not be used with APIs. Will return same object
-     *
-     * @param array $cookies Array of key/value pairs representing cookies.
-     * @return self
-     */
-    public function withCookieParams(array $cookies)
-    {
-        return $this;
-    }
-
-    /**
-     * Retrieve query string arguments.
-     *
-     * @return array
-     */
-    public function getQueryParams()
-    {
-        return $this->queryParams;
-    }
-
-    /**
-     * Create a new instance with the specified query string arguments.
-     *
-     * @param array $query Array of query string arguments, typically from
-     *     $_GET.
-     * @return self
-     */
-    public function withQueryParams(array $query)
-    {
-        $clone = clone $this;
-        $clone->queryParams = $query;
-        return $clone;
-    }
-
-    /**
-     * Files should not be used with APIs. Use PUT requests and body instead
-     *
-     * @return array Upload file(s) metadata, if any.
-     */
-    public function getFileParams()
-    {
-        return null;
-    }
-
-    /**
-     * Retrieve any parameters provided in the request body.
-     *
-     * @return null|array|object The deserialized body parameters, if any.
-     *     These will typically be an array or object.
-     */
-    public function getParsedBody()
-    {
-        return $this->parsedBody;
-    }
-
-    /**
-     * Create a new instance with the specified body parameters.
-     *
-     * @param null|array|object $data The deserialized body data. This will
-     *     typically be in an array or object.
-     * @return self
-     */
-    public function withParsedBody($data)
-    {
-        $clone = clone $this;
-        $clone->parsedBody = $data;
-        return $clone;
-    }
-
-    /**
-     * Retrieve attributes derived from the request.
-     *
-     * @return array Attributes derived from the request.
-     */
-    public function getAttributes()
-    {
-        return $this->attributes;
-    }
-
-    /**
-     * Retrieve a single derived request attribute.
-     *
-     * @see getAttributes()
-     * @param string $name The attribute name.
-     * @param mixed $default Default value to return if the attribute does not exist.
-     * @return mixed
-     */
-    public function getAttribute($name, $default = null)
-    {
-        return (is_array($this->attributes) && array_key_exists($name, $this->attributes)) ? $this->attributes[$name] : $default;
-    }
-
-    /**
-     * Create a new instance with the specified derived request attribute.
-     *
-     * @see getAttributes()
-     * @param string $name The attribute name.
-     * @param mixed $value The value of the attribute.
-     * @return self
-     */
-    public function withAttribute($name, $value)
-    {
-        $clone = clone $this;
-        $clone->attributes[$name] = $value;
-        return $clone;
-    }
-
-    /**
-     * Create a new instance that removes the specified derived request
-     * attribute.
-     *
-     * @see getAttributes()
-     * @param string $name The attribute name.
-     * @return self
-     */
-    public function withoutAttribute($name)
-    {
-        if (!array_key_exists($name, $this->attributes)) {
-            return $this;
+        // Check for a query string
+        if ($this->uri instanceof UriInterface) {
+            $this->queryParams = parse_str($this->uri->getQuery());
         }
 
-        $clone = clone $this;
-        unset($clone->attributes[$name]);
-        return $clone;
+        // Handle uploaded files
+        $this->validateUploadedFiles($uploadedFiles);
+        $this->uploadedFiles = $uploadedFiles;
     }
 
     /**
-     * Retrieves the message's request target.
-     *
-     * @return string
+     * {@inheritdoc}
      */
     public function getRequestTarget()
     {
@@ -270,108 +154,64 @@ class Request implements RequestContract {
             return $this->requestTarget;
         }
 
-        if (!$this->uri) {
+        if (! $this->uri) {
             return '/';
         }
 
-        $this->requestTarget = $this->uri->getPath();
+        $target = $this->uri->getPath();
         if ($this->uri->getQuery()) {
-            $this->requestTarget .= '?' . $this->uri->getQuery();
+            $target .= '?' . $this->uri->getQuery();
         }
-        return $this->requestTarget;
+
+        if (empty($target)) {
+            $target = '/';
+        }
+
+        return $target;
     }
 
     /**
-     * Create a new instance with a specific request-target.
-     *
-     * @link http://tools.ietf.org/html/rfc7230#section-2.7 (for the various
-     *     request-target forms allowed in request messages)
-     * @param mixed $requestTarget
-     * @return self
+     * {@inheritdoc}
      */
     public function withRequestTarget($requestTarget)
     {
         if (preg_match('#\s#', $requestTarget)) {
             throw new \InvalidArgumentException(
-                'Invalid request target provided, cannot contain whitespace'
+                'Invalid request target provided; cannot contain whitespace'
             );
         }
 
-        $clone = clone $this;
-        $clone->requestTarget = $requestTarget;
-        return $clone;
+        $new = clone $this;
+        $new->requestTarget = $requestTarget;
+        return $new;
     }
 
     /**
-     * Retrieves the HTTP method of the request.
-     *
-     * @return string Returns the request method.
+     * {@inheritdoc}
      */
     public function getMethod()
     {
         return $this->method;
     }
 
-    /**
-     * Check if the request method is the same as the provided method
-     *
-     * @param string $method
-     * @return bool
-     */
     public function isMethod($method)
     {
         return ($this->method === $method) ? true : false;
     }
 
     /**
-     * Find the request method from server params
-     *
-     * @param $serverParams
-     * @return null|string
-     */
-    protected function findMethod($serverParams)
-    {
-        if (!isset($serverParams['REQUEST_METHOD'])) {
-            return null;
-        }
-
-        $method = $serverParams['REQUEST_METHOD'];
-
-        if (!in_array($method, $this->validMethods, true)) {
-            throw new \InvalidArgumentException(
-                'Unsupported HTTP method; supported methods: '. implode(', ', $this->validMethods)
-            );
-        }
-
-        return $method;
-    }
-
-    /**
-     * Create a new instance with the provided HTTP method.
-     *
-     * @param string $method Case-insensitive method.
-     * @return self
-     * @throws \InvalidArgumentException for invalid HTTP methods.
+     * {@inheritdoc}
      */
     public function withMethod($method)
     {
-        if (!in_array($method, $this->validMethods)) {
-            throw new \InvalidArgumentException(
-                'Unsupported HTTP method; supported methods: '. implode(', ', $this->validMethods)
-            );
-        }
-
-        $clone = clone $this;
-        $clone->method = $method;
-        return $clone;
+        $this->validateMethod($method);
+        $new = clone $this;
+        $new->method = $method;
+        return $new;
     }
 
     /**
-     * Retrieves the URI instance.
-     *
-     * @link http://tools.ietf.org/html/rfc3986#section-4.3
-     * @return UriInterface Returns a UriInterface instance
-     *     representing the URI of the request, if any.
+     * {@inheritdoc}
      */
     public function getUri()
     {
@@ -379,43 +219,224 @@ class Request implements RequestContract {
     }
 
     /**
-     * Create a new instance with the provided URI.
-     *
-     * @link http://tools.ietf.org/html/rfc3986#section-4.3
-     * @param UriInterface $uri New request URI to use.
-     * @return self
+     * {@inheritdoc}
      */
-    public function withUri(UriInterface $uri)
+    public function withUri(UriInterface $uri, $preserveHost = false)
     {
-        $clone = clone $this;
-        $clone->requestTarget = null;
-        $clone->uri = $uri;
-        return $clone;
+        $new = clone $this;
+        $new->uri = $uri;
+
+        if ($preserveHost) {
+            return $new;
+        }
+
+        if (! $uri->getHost()) {
+            return $new;
+        }
+
+        $host = $uri->getHost();
+        if ($uri->getPort()) {
+            $host .= ':' . $uri->getPort();
+        }
+
+        $new->headerNames['host'] = 'Host';
+        $new->headers['Host'] = array($host);
+
+        return $new;
     }
 
     /**
-     * Find headers in the server parameters
-     *
-     * @param array $serverParams
-     * @return array
+     * {@inheritdoc}
      */
-    protected function findHeaders($serverParams = [])
+    public function getServerParams()
     {
-        $headers = [];
-        foreach ($serverParams as $key => $value) {
-            if (!$this->isValidHeader($key, $value)) {
-                continue;
-            }
+        return $this->serverParams;
+    }
 
-            $key = strtolower($key);
-            if (
-                0 === strpos($key, 'http_') ||
-                isset($this->specialHeaders[$key])
-            ) {
-                $headers[$key] = (is_array($value)) ? $value : [$value];
-            }
+    /**
+     * {@inheritdoc}
+     */
+    public function getCookieParams()
+    {
+        return $this->cookieParams;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function withCookieParams(array $cookies)
+    {
+        $new = clone $this;
+        $new->cookieParams = $cookies;
+        return $new;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function getQueryParams()
+    {
+        return $this->queryParams;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function withQueryParams(array $query)
+    {
+        $new = clone $this;
+        $new->queryParams = $query;
+        return $new;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function getUploadedFiles()
+    {
+        return $this->uploadedFiles;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function withUploadedFiles(array $uploadedFiles)
+    {
+        $this->validateUploadedFiles($uploadedFiles);
+        $new = clone $this;
+        $new->uploadedFiles = $uploadedFiles;
+        return $new;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function getParsedBody()
+    {
+        return $this->parsedBody;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function withParsedBody($data)
+    {
+        $new = clone $this;
+        $new->parsedBody = $data;
+        return $new;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function getAttributes()
+    {
+        return $this->attributes;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function getAttribute($attribute, $default = null)
+    {
+        if (! array_key_exists($attribute, $this->attributes)) {
+            return $default;
         }
 
-        return $headers;
+        return $this->attributes[$attribute];
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function withAttribute($attribute, $value)
+    {
+        $new = clone $this;
+        $new->attributes[$attribute] = $value;
+        return $new;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function withoutAttribute($attribute)
+    {
+        if (!isset($this->attributes[$attribute])) {
+            return clone $this;
+        }
+
+        $new = clone $this;
+        unset($new->attributes[$attribute]);
+        return $new;
+    }
+
+    /**
+     * Validate the HTTP method
+     *
+     * @param null|string $method
+     * @throws \InvalidArgumentException on invalid HTTP method.
+     * @return bool
+     */
+    private function validateMethod($method)
+    {
+        if (null === $method) {
+            return true;
+        }
+
+        if (!is_string($method)) {
+            throw new \InvalidArgumentException(sprintf(
+                'Unsupported HTTP method; must be a string, received %s',
+                (is_object($method) ? get_class($method) : gettype($method))
+            ));
+        }
+
+        $method = strtoupper($method);
+
+        if (!in_array($method, $this->validMethods, true)) {
+            throw new \InvalidArgumentException(sprintf(
+                'Unsupported HTTP method "%s" provided',
+                $method
+            ));
+        }
+
+        return true;
+    }
+
+    /**
+     * Find request method from server params and make sure
+     * its a valid one
+     *
+     * @param $serverParams
+     * @return null
+     */
+    private function findMethod($serverParams)
+    {
+        if (!isset($serverParams['REQUEST_METHOD'])) {
+            return null;
+        }
+
+        $method = $serverParams['REQUEST_METHOD'];
+        $this->validateMethod($method);
+
+        return $method;
+    }
+
+    /**
+     * Recursively validate the structure in an uploaded files array.
+     *
+     * @param array $uploadedFiles
+     * @throws \InvalidArgumentException if any leaf is not an UploadedFileInterface instance.
+     */
+    private function validateUploadedFiles(array $uploadedFiles)
+    {
+        foreach ($uploadedFiles as $file) {
+            if (is_array($file)) {
+                $this->validateUploadedFiles($file);
+                continue;
+            }
+            if (! $file instanceof UploadedFileInterface) {
+                throw new \InvalidArgumentException('Invalid leaf in uploaded files structure');
+            }
+        }
     }
 }
