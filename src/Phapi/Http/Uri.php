@@ -122,13 +122,7 @@ class Uri implements UriInterface
             return $this->uriString;
         }
 
-        $this->uriString = static::createUriString(
-            $this->scheme,
-            $this->getAuthority(),
-            $this->getPath(), // Absolute URIs should use a "/" for an empty path
-            $this->query,
-            $this->fragment
-        );
+        $this->uriString = $this->createUriString();
 
         return $this->uriString;
     }
@@ -409,26 +403,22 @@ class Uri implements UriInterface
     /**
      * Create a URI string from its various parts
      *
-     * @param string $scheme
-     * @param string $authority
-     * @param string $path
-     * @param string $query
-     * @param string $fragment
      * @return string
      */
-    private static function createUriString($scheme, $authority, $path, $query, $fragment)
+    private function createUriString()
     {
         $uri = '';
 
-        if (! empty($scheme)) {
-            $uri .= sprintf('%s://', $scheme);
+        if (! empty($this->scheme)) {
+            $uri .= sprintf('%s://', $this->scheme);
         }
 
+        $authority = $this->getAuthority();
         if (! empty($authority)) {
             $uri .= $authority;
         }
 
-        if ($path) {
+        if ($path = $this->getPath()) {
             if (empty($path) || '/' !== substr($path, 0, 1)) {
                 $path = '/' . $path;
             }
@@ -436,12 +426,12 @@ class Uri implements UriInterface
             $uri .= $path;
         }
 
-        if ($query) {
-            $uri .= sprintf('?%s', $query);
+        if ($this->query) {
+            $uri .= sprintf('?%s', $this->query);
         }
 
-        if ($fragment) {
-            $uri .= sprintf('#%s', $fragment);
+        if ($this->fragment) {
+            $uri .= sprintf('#%s', $this->fragment);
         }
 
         return $uri;
