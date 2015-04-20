@@ -6,13 +6,15 @@ use Phapi\Contract\Http\Response as ResponseContract;
 use Psr\Http\Message\StreamInterface;
 
 /**
- * Class Response
+ * Implementation of PSR Response
  *
  * @category Phapi
  * @package  Phapi\Http
  * @author   Peter Ahinko <peter@ahinko.se>
  * @license  MIT (http://opensource.org/licenses/MIT)
  * @link     https://github.com/phapi/http
+ * @link     https://github.com/phly/http This class is based upon
+ *           Matthew Weier O'Phinney's Stream implementation in phly/http.
  */
 class Response implements ResponseContract
 {
