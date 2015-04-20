@@ -75,28 +75,13 @@ class UploadedFile implements UploadedFileInterface
         }
         $this->size = $size;
 
-        if (! is_int($errorStatus)
-            || 0 > $errorStatus
-            || 8 < $errorStatus
-        ) {
-            throw new InvalidArgumentException(
-                'Invalid error status for UploadedFile; must be an UPLOAD_ERR_* constant'
-            );
-        }
+        $this->validateErrorStatus($errorStatus);
         $this->error = $errorStatus;
 
-        if (null !== $clientFilename && ! is_string($clientFilename)) {
-            throw new InvalidArgumentException(
-                'Invalid client filename provided for UploadedFile; must be null or a string'
-            );
-        }
+        $this->validateClientFilename($clientFilename);
         $this->clientFilename = $clientFilename;
 
-        if (null !== $clientMediaType && ! is_string($clientMediaType)) {
-            throw new InvalidArgumentException(
-                'Invalid client media type provided for UploadedFile; must be null or a string'
-            );
-        }
+        $this->validateClientMediaType($clientMediaType);
         $this->clientMediaType = $clientMediaType;
     }
 
@@ -220,5 +205,50 @@ class UploadedFile implements UploadedFileInterface
         }
 
         fclose($handle);
+    }
+
+    /**
+     * Validate filename
+     *
+     * @param $clientFilename
+     */
+    private function validateClientFilename($clientFilename)
+    {
+        if (null !== $clientFilename && ! is_string($clientFilename)) {
+            throw new InvalidArgumentException(
+                'Invalid client filename provided for UploadedFile; must be null or a string'
+            );
+        }
+    }
+
+    /**
+     * Validate media type
+     *
+     * @param $clientMediaType
+     */
+    private function validateClientMediaType($clientMediaType)
+    {
+        if (null !== $clientMediaType && ! is_string($clientMediaType)) {
+            throw new InvalidArgumentException(
+                'Invalid client media type provided for UploadedFile; must be null or a string'
+            );
+        }
+    }
+
+    /**
+     * Validate error status
+     *
+     * @param $errorStatus
+     */
+    private function validateErrorStatus($errorStatus)
+    {
+        if (! is_int($errorStatus)
+            || 0 > $errorStatus
+            || 8 < $errorStatus
+        ) {
+            throw new InvalidArgumentException(
+                'Invalid error status for UploadedFile; must be an UPLOAD_ERR_* constant'
+            );
+        }
     }
 }
