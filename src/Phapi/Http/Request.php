@@ -119,13 +119,7 @@ class Request implements Contract {
         $this->headerNames = $this->findHeaderNames($this->headers);
 
         // Make sure the body is valid
-        if (!is_string($body) && !is_resource($body) && !$body instanceof StreamInterface) {
-            throw new \InvalidArgumentException(
-                'Body must be a string stream resource identifier, '
-                . 'an actual stream resource, '
-                . 'or a Psr\Http\Message\StreamInterface implementation'
-            );
-        }
+        $this->validateBody($body);
         // Set body
         $this->stream = ($body instanceof StreamInterface) ? $body : new Stream($body, 'r');
 
@@ -437,6 +431,22 @@ class Request implements Contract {
             if (! $file instanceof UploadedFileInterface) {
                 throw new \InvalidArgumentException('Invalid leaf in uploaded files structure');
             }
+        }
+    }
+
+    /**
+     * Validate the body
+     *
+     * @param $body
+     */
+    private function validateBody($body)
+    {
+        if (!is_string($body) && !is_resource($body) && !$body instanceof StreamInterface) {
+            throw new \InvalidArgumentException(
+                'Body must be a string stream resource identifier, '
+                . 'an actual stream resource, '
+                . 'or a Psr\Http\Message\StreamInterface implementation'
+            );
         }
     }
 }
