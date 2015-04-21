@@ -242,11 +242,11 @@ class Response implements ResponseContract
     ];
 
     /**
-     * The unparsed body
+     * The unserialized body
      *
      * @var array
      */
-    protected $unparsedBody;
+    protected $unserializedBody;
 
     public function __construct($body = 'php://memory', $code = 200, $headers = [])
     {
@@ -295,26 +295,26 @@ class Response implements ResponseContract
     }
 
     /**
-     * Create a new instance with the specified unparsed/unserialized body.
+     * Create a new instance with the specified unserialized body.
      *
      * @param array $body
      * @return Response
      */
-    public function withUnparsedBody(array $body = [])
+    public function withUnserializedBody(array $body = [])
     {
         $clone = clone $this;
-        $clone->unparsedBody = $body;
+        $clone->unserializedBody = $body;
         return $clone;
     }
 
     /**
-     * Get the unparsed/unserialized body
+     * Get the unserialized body
      *
      * @return mixed
      */
-    public function getUnparsedBody()
+    public function getUnserializedBody()
     {
-        return $this->unparsedBody;
+        return $this->unserializedBody;
     }
 
     /**

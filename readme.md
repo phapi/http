@@ -110,7 +110,7 @@ $newResponse = $response->withQueryParams([ 'limit' => '20' ]);
 Use the <code>withParsedBody(array $data)</code> method to add or modify a parsed body. <code>null</code> could be passed as the argument if the parsed body should be removed.
 
 #### Original body
-The original unparsed body can be modified by using the <code>withBody(StreamableInterface $body)</code> method.
+The original unserialized body can be modified by using the <code>withBody(StreamableInterface $body)</code> method.
 
 #### Attributes
 The <code>withAttribute($name, $value)</code> method adds a new attribute to the request object. If the attribute already exists it will be replaced.
@@ -143,7 +143,7 @@ The response headers can be retrieved by using the <code>getHeaders()</code> met
 The <code>hasHeader($name)</code> method can be used to detect if a header is set.
 
 ### Body
-The response object has two methods for viewing the body. The <code>getUnparsedBody()</code> method returns the unserialized body as an array while the <code>getBody()</code> method returns the serialized body as a string (if the serializer middleware has been executed).
+The response object has two methods for viewing the body. The <code>getUnserializedBody()</code> method returns the unserialized body as an array while the <code>getBody()</code> method returns the serialized body as a string (if the serializer middleware has been executed).
 
 ### Changing the response object
 The following methods must be used to change the response object. Please note that each of these methods clones the response object, makes the modifications and then returns the clone.
@@ -157,7 +157,7 @@ Headers can be modified with three different methods. The <code>withHeader($name
 The <code>withoutHeader($name)</code> method removes the header if it exists.
 
 #### Body
-Use the withUnparsedBody(array $data) method to add or modify the body. The serializer middleware will then serialize the body and set the serialized string as the response body.
+Use the withUnserializedBody(array $data) method to add or modify the body. The serializer middleware will then serialize the body and set the serialized string as the response body.
 
 
 ## License

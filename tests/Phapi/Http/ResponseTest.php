@@ -146,9 +146,9 @@ class ResponseTest extends TestCase
         $this->assertEquals($expected, $response->getHeaders());
     }
 
-    public function testUnparsedBody()
+    public function testUnserializedBody()
     {
-        $response = $this->response->withUnparsedBody([ 'key' => 'value' ]);
-        $this->assertEquals([ 'key' => 'value' ], $response->getUnparsedBody());
+        $response = $this->response->withUnserializedBody([ 'key' => 'value' ]);
+        $this->assertEquals([ 'key' => 'value' ], $response->getUnserializedBody());
     }
 }
