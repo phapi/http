@@ -26,7 +26,11 @@
   },
   "autoload": {
     "psr-4": {
-      "Phapi\\Http\\": "src/Phapi/Http/",
+      "Phapi\\Http\\": "src/Phapi/Http/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
       "Phapi\\Tests\\Http\\": "tests/Phapi/Http/"
     }
   }
