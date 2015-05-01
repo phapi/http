@@ -167,10 +167,11 @@ class MessageTraitTest extends TestCase
         $headers = [
             'HTTP_X_FOO' => ['bar'],
             'HTTP_COOKIE' => ['cookie'],
-            'CONTENT_TYPE' => ['application/json']
+            'CONTENT_TYPE' => ['application/json'],
+            'HTTP_X_HTTP_METHOD_OVERRIDE' => ['PUT']
         ];
         $this->message = new Request($headers);
-        $this->assertSame(['X-Foo' => ['bar'], 'Content-Type' => ['application/json']], $this->message->getHeaders());
+        $this->assertSame(['X-Foo' => ['bar'], 'Content-Type' => ['application/json'], 'X-Http-Method-Override' => ['PUT']], $this->message->getHeaders());
         $this->assertFalse($this->message->hasHeader('Cookie'));
         $this->assertFalse($this->message->hasHeader('HTTP_COOKIE'));
     }

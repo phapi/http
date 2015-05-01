@@ -279,7 +279,9 @@ trait MessageTrait {
         // Transform to lowercase
         $name = strtolower($name);
         // Remove http_ in beginning of string
-        $name = str_replace('http_', '', $name);
+        if (substr($name, 0, strlen('http_')) == 'http_') {
+            $name = substr($name, strlen('http_'));
+        }
         // Replace all underscores with space
         $name = str_replace('_', ' ', $name);
         // Uppercase all words
