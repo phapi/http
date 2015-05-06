@@ -181,13 +181,13 @@ class MessageTraitTest extends TestCase
     }
     public function testGetHeaderLineReturnsNullWhenHeaderDoesNotExist()
     {
-        $this->assertNull($this->message->getHeaderLine('X-Foo-Bar'));
+        $this->assertEmpty($this->message->getHeaderLine('X-Foo-Bar'));
     }
 
     public function testGetHeaderLineReturnsNullWhenHeaderHasNoValue()
     {
         $message = $this->message->withAddedHeader('X-Foo-Null', []);
-        $this->assertNull($message->getHeaderLine('X-Foo-Null'));
+        $this->assertEmpty($message->getHeaderLine('X-Foo-Null'));
     }
 
     public function testInvalidHeaderName()

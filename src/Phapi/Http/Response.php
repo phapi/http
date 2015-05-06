@@ -269,11 +269,17 @@ class Response implements ResponseContract
         list($this->headerNames, $this->headers) = $this->filterHeaders($headers);
     }
 
+    /**
+     * {@inheritdoc}
+     */
     public function getStatusCode()
     {
         return $this->statusCode;
     }
 
+    /**
+     * {@inheritdoc}
+     */
     public function getReasonPhrase()
     {
         if (!isset($this->reasonPhrase) && isset($this->reasonPhrases[$this->statusCode])) {
@@ -283,13 +289,16 @@ class Response implements ResponseContract
         return $this->reasonPhrase;
     }
 
-    public function withStatus($code, $reasonPhrase = null)
+    /**
+     * {@inheritdoc}
+     */
+    public function withStatus($code, $reasonPhrase = '')
     {
         $this->validateStatus($code);
 
         $clone = clone ($this);
         $clone->statusCode = (int)$code;
-        $clone->reasonPhrase = ($reasonPhrase === null) ? $this->reasonPhrases[$code] : $reasonPhrase;
+        $clone->reasonPhrase = ($reasonPhrase === '') ? $this->reasonPhrases[$code] : $reasonPhrase;
 
         return $clone;
     }

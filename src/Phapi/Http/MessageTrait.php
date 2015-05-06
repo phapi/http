@@ -121,13 +121,13 @@ trait MessageTrait {
     public function getHeaderLine($name)
     {
         if (!$this->hasHeader($name)) {
-            return null;
+            return '';
         }
 
         $value = $this->getHeader($name);
 
         if (empty($value)) {
-            return null;
+            return '';
         }
 
         return implode(',', $value);
