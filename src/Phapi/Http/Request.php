@@ -16,7 +16,7 @@ use Psr\Http\Message\UriInterface;
  * @license  MIT (http://opensource.org/licenses/MIT)
  * @link     https://github.com/phapi/http
  * @link     https://github.com/phly/http This class is based upon
- *           Matthew Weier O'Phinney's Stream implementation in phly/http.
+ *           Matthew Weier O'Phinney's Request implementation in phly/http.
  */
 class Request implements Contract {
 

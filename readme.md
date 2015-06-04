@@ -1,6 +1,8 @@
 # Phapi HTTP Message
 Phapi HTTP Message is an implementation of [PSR-7](https://github.com/php-fig/http-message) with some additional complementary methods to simplify the usage of the request and response objects.
 
+Some of these classes are based on Matthew Weier O'Phinney's implementations in [phly/http](https://github.com/phly/http).
+
 ## Request
 The request object represents the request made by the client as well as the parameters set by the server.
 
