@@ -3,6 +3,13 @@ Phapi HTTP Message is an implementation of [PSR-7](https://github.com/php-fig/ht
 
 Some of these classes are based on Matthew Weier O'Phinney's implementations in [phly/http](https://github.com/phly/http).
 
+## Installation
+The package is installed by default by the Phapi framework. Installing the package to use is separately can be done by using composer:
+
+```shell
+$ composer require phapi/http:1.*
+```
+
 ## Request
 The request object represents the request made by the client as well as the parameters set by the server.
 
