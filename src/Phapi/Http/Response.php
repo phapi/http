@@ -3,23 +3,19 @@
 namespace Phapi\Http;
 
 use Phapi\Contract\Http\Response as ResponseContract;
-use Psr\Http\Message\StreamInterface;
+use Zend\Diactoros\Response as DiactorosResponse;
 
 /**
- * Implementation of PSR Response
+ * Extending Diactoros to add more functionality
  *
  * @category Phapi
  * @package  Phapi\Http
  * @author   Peter Ahinko <peter@ahinko.se>
  * @license  MIT (http://opensource.org/licenses/MIT)
  * @link     https://github.com/phapi/http
- * @link     https://github.com/phly/http This class is based upon
- *           Matthew Weier O'Phinney's Response implementation in phly/http.
  */
-class Response implements ResponseContract
+class Response extends DiactorosResponse implements ResponseContract
 {
-
-    use MessageTrait;
 
     /**
      * Success!
@@ -248,61 +244,6 @@ class Response implements ResponseContract
      */
     protected $unserializedBody;
 
-    public function __construct($body = 'php://memory', $code = 200, $headers = [])
-    {
-        if (!is_string($body) && !is_resource($body) && !$body instanceof StreamInterface) {
-            throw new \InvalidArgumentException(
-                'Stream must be a string stream resource identifier, '
-                . 'an actual stream resource, '
-                . 'or a Psr\Http\Message\StreamInterface implementation'
-            );
-        }
-
-        if ($code === null) {
-            $code = 200;
-        }
-
-        $this->validateStatus($code);
-
-        $this->statusCode = (int) $code;
-        $this->stream = ($body instanceof StreamInterface) ? $body : new Stream($body, 'w+');
-        list($this->headerNames, $this->headers) = $this->filterHeaders($headers);
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function getStatusCode()
-    {
-        return $this->statusCode;
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function getReasonPhrase()
-    {
-        if (!isset($this->reasonPhrase) && isset($this->reasonPhrases[$this->statusCode])) {
-            $this->reasonPhrase = $this->reasonPhrases[$this->statusCode];
-        }
-
-        return $this->reasonPhrase;
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function withStatus($code, $reasonPhrase = '')
-    {
-        $this->validateStatus($code);
-
-        $clone = clone ($this);
-        $clone->statusCode = (int)$code;
-        $clone->reasonPhrase = ($reasonPhrase === '') ? $this->reasonPhrases[$code] : $reasonPhrase;
-
-        return $clone;
-    }
-
     /**
      * Create a new instance with the specified unserialized body.
      *
@@ -324,52 +265,5 @@ class Response implements ResponseContract
     public function getUnserializedBody()
     {
         return $this->unserializedBody;
-    }
-
-    /**
-     * Validate a status code.
-     *
-     * @param int|string $code
-     * @throws \InvalidArgumentException on an invalid status code.
-     */
-    private function validateStatus($code)
-    {
-        if (!is_numeric($code)
-            || is_float($code)
-            || $code < 100
-            || $code >= 600
-        ) {
-            throw new \InvalidArgumentException(sprintf(
-                'Invalid status code "%s"; must be an integer between 100 and 599, inclusive',
-                (is_scalar($code) ? $code : gettype($code))
-            ));
-        }
-    }
-
-    /**
-     * Filter a set of headers to ensure they are in the correct internal format.
-     *
-     * Used by message constructors to allow setting all initial headers at once.
-     *
-     * @param array $originalHeaders Headers to filter.
-     * @return array Filtered headers and names.
-     */
-    private function filterHeaders(array $originalHeaders)
-    {
-        $headerNames = $headers = [];
-        foreach ($originalHeaders as $header => $value) {
-            if (! is_string($header)) {
-                continue;
-            }
-            if (! is_array($value) && ! is_string($value)) {
-                continue;
-            }
-            if (! is_array($value)) {
-                $value = [ $value ];
-            }
-            $headerNames[strtolower($header)] = $header;
-            $headers[$header] = $value;
-        }
-        return [ $headerNames, $headers ];
     }
 }
