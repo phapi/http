@@ -4,20 +4,20 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#composer-lock-the-lock-file",
         "This file is @generated automatically"
     ],
-    "hash": "2b9e369604d1f6f20aaf308deb8c730e",
+    "hash": "fd9fea2d5ff1f132cd17375a1dbd53a1",
     "packages": [
         {
             "name": "phapi/contract",
-            "version": "dev-master",
+            "version": "1.0.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/phapi/contract.git",
-                "reference": "664e93167d1aac2dbb4399b082f07574442ba58c"
+                "reference": "875d0279e29837ef29332bf90d5ce96bead3a83c"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/phapi/contract/zipball/664e93167d1aac2dbb4399b082f07574442ba58c",
-                "reference": "664e93167d1aac2dbb4399b082f07574442ba58c",
+                "url": "https://api.github.com/repos/phapi/contract/zipball/875d0279e29837ef29332bf90d5ce96bead3a83c",
+                "reference": "875d0279e29837ef29332bf90d5ce96bead3a83c",
                 "shasum": ""
             },
             "require": {
@@ -48,7 +48,7 @@
                 "interfaces",
                 "phapi"
             ],
-            "time": "2015-06-07 19:02:03"
+            "time": "2015-07-02 08:03:20"
         },
         {
             "name": "psr/http-message",
@@ -1627,7 +1627,6 @@
     "aliases": [],
     "minimum-stability": "stable",
     "stability-flags": {
-        "phapi/contract": 20,
         "codeclimate/php-test-reporter": 20
     },
     "prefer-stable": false,
