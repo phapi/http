@@ -6,7 +6,8 @@ namespace Phapi\Http;
 use Zend\Diactoros\ServerRequestFactory as DiactorosServerRequestFactory;
 
 /**
- * Class ServerRequestFactory
+ * Extends Diactoros ServerRequestFactory so we use our own version
+ * of the (server)request class.
  *
  * @category Phapi
  * @package  Phapi\Http
@@ -40,5 +41,4 @@ class ServerRequestFactory extends DiactorosServerRequestFactory
             ->withQueryParams($query ?: $_GET)
             ->withParsedBody($body ?: $_POST);
     }
-
 }
