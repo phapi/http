@@ -6,6 +6,7 @@ php:
   - hhvm
 
 sudo: false
+before_install: composer self-update
 install: composer install --dev
 
 after_script:
