@@ -1,4 +1,9 @@
 # HTTP Message
+
+[![Build status](https://img.shields.io/travis/phapi/http.svg?style=flat-square)](https://travis-ci.org/phapi/http)
+[![Code Climate](https://img.shields.io/codeclimate/github/phapi/http.svg?style=flat-square)](https://codeclimate.com/github/phapi/http)
+[![Test Coverage](https://img.shields.io/codeclimate/coverage/github/phapi/http.svg?style=flat-square)](https://codeclimate.com/github/phapi/http/coverage)
+
 HTTP Message is an implementation of [PSR-7](https://github.com/php-fig/http-message) with some additional complementary methods to simplify the usage of the request and response objects.
 
 This package extends [zendframework/zend-diactoros](https://github.com/zendframework/zzend-diactoros).
